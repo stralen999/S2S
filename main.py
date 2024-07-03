@@ -53,7 +53,7 @@ def set_seed(iteration):
 	torch.manual_seed(seed)
 	torch.cuda.manual_seed(seed)
 	torch.backends.cudnn.deterministic=True
-	torch.set_deterministic(True)
+	#torch.set_deterministic(True)
 	return seed
 
 def init_seed(iteration):
@@ -107,12 +107,56 @@ def build_model(args, device, iteration):
 	print("Y : ", test_data.y.shape)
 
 	train_losses, val_losses = trainer.train_evaluate()
-	tester = Tester(model, optimizer, criterion, test_loader, device, args.model + '_' + str(args.version) + '_' + str(args.input_region),  mask)
+	tester = Tester(model, optimizer, criterion, test_loader, device, args.model + '_' + str(args.version) + '_' + str(args.input_region),  mask, args.forecast_date)
 	rmse, mae, r2 = tester.load_and_test(trainer.path)
 
 	return rmse,mae,r2
 
+def run_forecast(args, device):
 
+	models = {
+		'stconvs2s': STConvS2S
+	}
+	data, mask = prepare_dataset(args)
+	train_data = data.get_train()
+	val_data = data.get_val()
+	test_data = data.get_test()
+
+	model = models[args.model](train_data.x.shape, args.num_layers, args.hidden_dim, args.kernel_size, args.dropout, args.forecasting_horizon, args.version, device)
+	model.to(device)
+	print(model)
+
+	criterion = torch.nn.MSELoss()
+
+	opt_params = {'lr': 0.001, 'beta3': 0.999}
+	optimizer = adamod.AdaMod(model.parameters(), **opt_params)
+
+	train_loader, test_loader, val_loader = create_loaders(args, train_data, test_data, val_data)
+
+	model_path = create_path(args.model, args.version)
+	#Baseline models
+	if (args.version == 1):
+		trainer = Trainer(model, train_loader, val_loader, criterion, optimizer, args.epoch, device, model_path, args.patience, mask)
+	#Models coupled with LILW parameters
+	if (args.version == 2):
+		trainer = Trainer(model, train_loader, val_loader, criterion, optimizer, args.epoch, device, model_path, args.patience, mask, lilw = True)
+
+	print("-----Train-----")
+	print("X : ", train_data.x.shape)
+	print("Y : ", train_data.y.shape)
+	print("-----Val-----")
+	print("X : ", val_data.x.shape)
+	print("Y : ", val_data.y.shape)
+	print("-----Test-----")
+	print("X : ", test_data.x.shape)
+	print("Y : ", test_data.y.shape)
+
+	#train_losses, val_losses = trainer.train_evaluate()
+	tester = Tester(model, optimizer, criterion, test_loader, device, args.model + '_' + str(args.version) + '_' + str(args.input_region),  mask, args.forecast_date)
+	print("trainer.path",trainer.path)
+	rmse, mae, r2 = tester.load_and_test(trainer.path)
+
+	return rmse,mae,r2
 
 def run_model(args, device):
 	test_rmse, test_mae, test_r2 = [],[],[]
@@ -151,6 +195,7 @@ if __name__ == '__main__':
 	# 1 = base model, 2 = base model + lilw
 	parser.add_argument('-v',  '--version', type=int, choices=[1,2], default=1)
 	parser.add_argument('-xsl',  '--x-sequence-len', type=int, default=7)
+	parser.add_argument('-fd',  '--forecast_date', type=str, default='01-Jan-1970') #'01-Sep-2020'
 
 	args = parser.parse_args()
 
@@ -163,6 +208,12 @@ if __name__ == '__main__':
 	print(f'Device: {device}') 
 	print(f'Settings: {args}')
 
-	run_model(args, device)
+	if args.forecast_date == '01-Jan-1970':
+		run_model(args, device)
+	else:
+		# just read the latest model in models and run it
+		run_forecast(args,device)
+
+
 
 
