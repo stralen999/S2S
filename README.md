@@ -1,8 +1,12 @@
 # stconvs2s   
 
 1.source ../INTAKE-Baselines/venv/bin/activate
+
+
 train:
 2.python main.py -fh 1 -e 1 -b 2 -fd 
+
+
 forecast:
 3.python main.py -fh 1 -e 1 -b 2 -fd 07-Fev-2021
 
