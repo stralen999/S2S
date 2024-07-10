@@ -60,10 +60,10 @@ def init_seed(iteration):
 	seed = (iteration * 10) + 1000
 	np.random.seed(seed)
 
-def create_path(model, version):
+def create_path(model, version, fh):
 	newDirectory = os.path.join('models', model)
 	os.makedirs(newDirectory, exist_ok=True)
-	model_path = os.path.join(newDirectory, model + '_' + str(version) + '_' + datetime.now().strftime('m%md%d-h%Hm%Ms%S') + '.pth.tar')
+	model_path = os.path.join(newDirectory, model + '_' + str(version) + '_' + 'fd' + str(fh) + '.pth.tar')
 	return model_path
 
 def build_model(args, device, iteration):
@@ -88,7 +88,7 @@ def build_model(args, device, iteration):
 
 	train_loader, test_loader, val_loader = create_loaders(args, train_data, test_data, val_data)
 
-	model_path = create_path(args.model, args.version)
+	model_path = create_path(args.model, args.version, args.forecasting_horizon)
 	#Baseline models
 	if (args.version == 1):
 		trainer = Trainer(model, train_loader, val_loader, criterion, optimizer, args.epoch, device, model_path, args.patience, mask)
@@ -133,7 +133,7 @@ def run_forecast(args, device):
 
 	train_loader, test_loader, val_loader = create_loaders(args, train_data, test_data, val_data)
 
-	model_path = create_path(args.model, args.version)
+	model_path = create_path(args.model, args.version, args.forecasting_horizon)
 	#Baseline models
 	if (args.version == 1):
 		trainer = Trainer(model, train_loader, val_loader, criterion, optimizer, args.epoch, device, model_path, args.patience, mask)
@@ -195,7 +195,7 @@ if __name__ == '__main__':
 	# 1 = base model, 2 = base model + lilw
 	parser.add_argument('-v',  '--version', type=int, choices=[1,2], default=1)
 	parser.add_argument('-xsl',  '--x-sequence-len', type=int, default=7)
-	parser.add_argument('-fd',  '--forecast_date', type=str, default='01-Jan-1970') #'01-Sep-2020'
+	parser.add_argument('-fd',  '--forecast_date', type=str, default='01-Jan-1970') #'31-Jan-2021'
 
 	args = parser.parse_args()
 
