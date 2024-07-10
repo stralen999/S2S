@@ -16,6 +16,17 @@ from utils.trainer import Tester
 from models.stconvs2s import STConvS2S
 from sklearn.model_selection import TimeSeriesSplit
 
+
+torch.cuda.set_per_process_memory_fraction(0.5, 0)
+
+
+def force_cudnn_initialization():
+    s = 32
+    dev = torch.device('cuda')
+    torch.nn.functional.conv2d(torch.zeros(s, s, s, s, device=dev), torch.zeros(s, s, s, s, device=dev))
+
+force_cudnn_initialization()
+
 class RMSELoss(torch.nn.Module):
     def __init__(self, eps=1e-6):
         super().__init__()
@@ -27,7 +38,7 @@ class RMSELoss(torch.nn.Module):
         return loss
 
 def prepare_dataset(args):
-	dataPath = 'data'
+	dataPath = '/media/prsstorage/S2S/data'
 	dataDestination = '/medianmodel_acc'
 	test_split = args.split
 	val_split = args.split
@@ -150,8 +161,7 @@ def run_forecast(args, device):
 	print("-----Test-----")
 	print("X : ", test_data.x.shape)
 	print("Y : ", test_data.y.shape)
-
-	#train_losses, val_losses = trainer.train_evaluate()
+        #train_losses, val_losses = trainer.train_evaluate()
 	tester = Tester(model, optimizer, criterion, test_loader, device, args.model + '_' + str(args.version) + '_' + str(args.input_region),  mask, args.forecast_date)
 	print("trainer.path",trainer.path)
 	rmse, mae, r2 = tester.load_and_test(trainer.path)
@@ -181,7 +191,7 @@ if __name__ == '__main__':
 	#Current region
 	parser.add_argument('-ir', '--input-region', type=int, default=1)
 	parser.add_argument('-e',  '--epoch', type=int, default=100)
-	parser.add_argument('-b',  '--batch', type=int, default=15)
+	parser.add_argument('-b',  '--batch', type=int, default=4)
 	parser.add_argument('-p',  '--patience', type=int, default=10)
 	parser.add_argument('-w',  '--workers', type=int, default=4)
 	parser.add_argument('-m',  '--model', type=str, choices=['stconvs2s'], default='stconvs2s')
